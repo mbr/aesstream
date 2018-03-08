@@ -31,7 +31,7 @@ class CipherStreamBase(object):
             raise _exc('Mode must be one of %r' % (AES_VALID_CIPHER_MODES,))
 
         self.block_size = AES_BLOCK_SIZE
-        self.keylen = keylen/8
+        self.keylen = int(keylen/8)
         self.mode = mode
         self.cipher = 'aes'
         self.full_cipher = s.lower()
@@ -73,7 +73,7 @@ class AESStreamWriter(IOBase, CipherStreamBase):
         self.ostream.write(self.iv)
 
     def write(self, data):
-        self.ostream.write(self.aes.update(str(data)))
+        self.ostream.write(self.aes.update(data))
 
     def close(self):
         self.ostream.write(self.aes.final())
@@ -103,41 +103,41 @@ class AESStreamReader(IOBase, CipherStreamBase):
 
 if '__main__' == __name__:
     import unittest
-    from cStringIO import StringIO
+    from io import BytesIO
     from binascii import hexlify
 
-    AES_KEYLENGTH = 128/8
+    AES_KEYLENGTH = int(128/8)
 
     class AESStreamTests(unittest.TestCase):
         def test_enc_dev(self):
-            key = 'somekey012345678'
-            cleartext = 'The io module provides the Python interfaces to stream handling. Under Python 2.x, this is proposed as an alternative to the built-in file object, but in Python 3.x it is the default interface to access files and streams.' * 1000
+            key = b'somekey012345678'
+            cleartext = b'The io module provides the Python interfaces to stream handling. Under Python 2.x, this is proposed as an alternative to the built-in file object, but in Python 3.x it is the default interface to access files and streams.' * 1000
 
-            output_stream = StringIO()
+            output_stream = BytesIO()
             with AESStreamWriter(key, output_stream) as s:
                 s.write(cleartext)
 
             ciphertext = output_stream.getvalue()
 
-            with AESStreamReader(key, StringIO(ciphertext)) as s:
+            with AESStreamReader(key, BytesIO(ciphertext)) as s:
                 self.assertEqual(cleartext, s.read())
 
-            badkey = key[:AES_KEYLENGTH-1] + 'x'
-            with AESStreamReader(badkey, StringIO(ciphertext)) as s:
+            badkey = key[:AES_KEYLENGTH-1] + b'x'
+            with AESStreamReader(badkey, BytesIO(ciphertext)) as s:
                 self.assertNotEqual(cleartext, s.read())
 
         def test_known_values(self):
-            expected_ciphertext = '\xc2L-6cE#\x0cI\x81,\x92y'
-            expected_cleartext = 'my cleartext\n'
-            key = 'test1234....AAAA'
-            iv = 'opqrstuvwxyzABCD'
+            expected_ciphertext = b'\xc2L-6cE#\x0cI\x81,\x92y'
+            expected_cleartext = b'my cleartext\n'
+            key = b'test1234....AAAA'
+            iv = b'opqrstuvwxyzABCD'
 
             data = iv + expected_ciphertext
 
-            with AESStreamReader(key, StringIO(data)) as s:
+            with AESStreamReader(key, BytesIO(data)) as s:
                 self.assertEqual(s.read(), expected_cleartext)
 
-            buf = StringIO()
+            buf = BytesIO()
             with AESStreamWriter(key, buf, iv = iv) as s:
                 s.write(expected_cleartext)
                 new_data = buf.getvalue()
